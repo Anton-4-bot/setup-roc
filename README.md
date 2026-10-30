@@ -131,7 +131,7 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: '0 6 * * *' # after the daily nightly is published
+    - cron: '0 18 * * *' # nightlies are published around 16:00-17:00 UTC
 ```
 
 Matrix jobs need a distinct `cache-key-suffix` so that the entries saved on the default branch match the same jobs on PR branches. GitHub deletes caches unused for 7 days and evicts the least recently used ones when a repository exceeds 10 GB.

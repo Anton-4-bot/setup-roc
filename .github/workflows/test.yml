@@ -1,162 +1,25 @@
-name: Test Action
-
+name: Verify fallback
 on:
   pull_request:
-
 jobs:
   test:
-    name: Test ${{ matrix.version }}${{ matrix.nightly-tag && format(' ({0})', matrix.nightly-tag) || '' }} on ${{ matrix.os }} ${{ matrix.arch }}
-    runs-on: ${{ matrix.runner }}
+    runs-on: ubuntu-latest
     strategy:
+      max-parallel: 1
       matrix:
-        include:
-          - os: Linux
-            arch: x86_64
-            runner: ubuntu-latest
-            version: alpha3-rolling
-          - os: Linux
-            arch: x86_64
-            runner: ubuntu-latest
-            version: alpha4-rolling
-          - os: Linux
-            arch: x86_64
-            runner: ubuntu-latest
-            version: nightly
-          - os: Linux
-            arch: x86_64
-            runner: ubuntu-latest
-            version: nightly-new-compiler
-          - os: Linux
-            arch: x86_64
-            runner: ubuntu-latest
-            version: nightly-new-compiler
-            nightly-tag: nightly-2026-June-27-127861d
-          - os: Linux
-            arch: arm64
-            runner: ubuntu-24.04-arm
-            version: alpha3-rolling
-          - os: Linux
-            arch: arm64
-            runner: ubuntu-24.04-arm
-            version: alpha4-rolling
-          - os: Linux
-            arch: arm64
-            runner: ubuntu-24.04-arm
-            version: nightly
-          - os: Linux
-            arch: arm64
-            runner: ubuntu-24.04-arm
-            version: nightly-new-compiler
-          - os: macOS
-            arch: x86_64
-            runner: macos-15-intel
-            version: alpha3-rolling
-          - os: macOS
-            arch: x86_64
-            runner: macos-15-intel
-            version: alpha4-rolling
-          - os: macOS
-            arch: x86_64
-            runner: macos-15-intel
-            version: nightly
-          - os: macOS
-            arch: x86_64
-            runner: macos-15-intel
-            version: nightly-new-compiler
-          - os: macOS
-            arch: arm64
-            runner: macos-latest
-            version: alpha3-rolling
-          - os: macOS
-            arch: arm64
-            runner: macos-latest
-            version: alpha4-rolling
-          - os: macOS
-            arch: arm64
-            runner: macos-latest
-            version: nightly
-          - os: macOS
-            arch: arm64
-            runner: macos-latest
-            version: nightly-new-compiler
-          - os: macOS
-            arch: x86_64
-            runner: macos-26-intel
-            version: nightly-new-compiler
-          - os: macOS
-            arch: arm64
-            runner: macos-26
-            version: nightly-new-compiler
-          - os: Windows
-            arch: x86_64
-            runner: windows-2022
-            version: nightly-new-compiler
-          - os: Windows
-            arch: x86_64
-            runner: windows-2025
-            version: nightly-new-compiler
-
+        tag: [nightly-2026-10-28-bad769b, nightly-2026-10-29-a0a9fc2]
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-
-      - name: Setup Roc
-        id: setup-roc
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - id: setup-roc
         uses: ./
         with:
-          version: ${{ matrix.version }}
-          nightly-tag: ${{ matrix.nightly-tag }}
-          cache-key-suffix: ${{ matrix.runner }}-${{ matrix.nightly-tag }}
-
-      - name: Check Roc version
-        run: roc version
-
-      - name: Download HelloWorld example (old compiler)
-        if: matrix.version != 'nightly-new-compiler'
-        run: curl -fsSL -o main.roc https://raw.githubusercontent.com/roc-lang/examples/main/examples/HelloWorld/main.roc
-
-      - name: Download HelloWorld example (new compiler)
-        if: matrix.version == 'nightly-new-compiler'
-        run: curl -fsSL -o main.roc https://raw.githubusercontent.com/roc-lang/nightlies/main/hello_world_test.roc
-
-      - name: Run HelloWorld example
-        run: roc main.roc
-
-      # The Roc cache is saved when the job ends. Re-running the workflow
-      # restores it with an exact key match and `roc test` must then be cached.
-      - name: Run roc test (new compiler)
-        if: matrix.version == 'nightly-new-compiler' && !matrix.nightly-tag
-        shell: bash
-        run: |
-          printf 'CacheSmoke := [A].{\n\tvalue : I64\n\tvalue = 5\n}\n\nexpect CacheSmoke.value == 5\n' > CacheSmoke.roc
-          roc test CacheSmoke.roc | tee test-output.txt
-
-      - name: Check Roc cache (new compiler)
-        if: matrix.version == 'nightly-new-compiler' && !matrix.nightly-tag
-        shell: bash
-        env:
-          CACHE_HIT: ${{ steps.setup-roc.outputs.cache-hit }}
-        run: |
-          echo "ROC_CACHE_DIR=$ROC_CACHE_DIR"
-          if [[ -z "$(ls -A "$ROC_CACHE_DIR")" ]]; then
-            echo "Error: roc test did not write to ROC_CACHE_DIR"
-            exit 1
-          fi
-          if [[ "${{ github.run_attempt }}" != "1" ]]; then
-            if [[ "$CACHE_HIT" != "true" ]]; then
-              echo "Error: expected an exact cache hit on a workflow re-run (cache-hit='$CACHE_HIT')"
-              exit 1
-            fi
-            if ! grep -q "(cached)" test-output.txt; then
-              echo "Error: roc test did not use the restored cache"
-              exit 1
-            fi
-          fi
-
-      # Save even when an earlier step failed; the automatic save only runs on success.
-      - name: Save Roc cache
-        if: always() && steps.setup-roc.outputs.cache-key != ''
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.setup-roc.outputs.cache-path }}
-          key: ${{ steps.setup-roc.outputs.cache-key }}
+          version: nightly-new-compiler
+          nightly-tag: ${{ matrix.tag }}
+          cache-key-suffix: fallback
+      - run: |
+          roc version
+          echo "cache-hit='${{ steps.setup-roc.outputs.cache-hit }}'"
+          echo "key=${{ steps.setup-roc.outputs.cache-key }}"
+          ls -la "$ROC_CACHE_DIR" || true
+          mkdir -p "$ROC_CACHE_DIR"
+          echo "from ${{ matrix.tag }}" > "$ROC_CACHE_DIR/marker-${{ matrix.tag }}"

@@ -121,6 +121,21 @@ The cache is saved automatically when the job succeeds. To also save it when the
 
 When the job succeeds, the automatic save finds this key already reserved and does nothing.
 
+### Warm the cache on your default branch
+
+GitHub only lets a run restore caches from its own branch, its base branch and the default branch, and a fork PR cannot write to the default branch's caches. A PR's first run is therefore cold unless a run on the default branch has saved a cache. Run your Roc workflow on the default branch too, and on a schedule, because a new Roc nightly starts a new cache:
+
+```yaml
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * *' # after the daily nightly is published
+```
+
+Matrix jobs need a distinct `cache-key-suffix` so that the entries saved on the default branch match the same jobs on PR branches. GitHub deletes caches unused for 7 days and evicts the least recently used ones when a repository exceeds 10 GB.
+
 ## Security
 
 For major releases, the action verifies the SHA256 checksum of the downloaded file to ensure it hasn't been tampered with. If the checksum doesn't match, the action will fail.

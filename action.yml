@@ -16,6 +16,25 @@ inputs:
     description: 'GitHub token used to authenticate API requests (avoids rate limiting). Defaults to the workflow token.'
     required: false
     default: ${{ github.token }}
+  cache:
+    description: 'Restore and save the Roc cache (including `roc test` results) with actions/cache. Only applies to "nightly-new-compiler". Set to "false" to disable.'
+    required: false
+    default: 'true'
+  cache-key-suffix:
+    description: 'Extra text for the cache key. Use it to keep cache entries apart when jobs share a name, e.g. matrix jobs.'
+    required: false
+    default: ''
+
+outputs:
+  cache-hit:
+    description: 'Whether the Roc cache was restored with an exact key match. Empty when caching is disabled.'
+    value: ${{ steps.roc-cache.outputs.cache-hit }}
+  cache-path:
+    description: 'Directory of the Roc cache (ROC_CACHE_DIR). Empty when caching is disabled. Use it with actions/cache/save to also save the cache when the job fails.'
+    value: ${{ steps.roc-cache-config.outputs.dir }}
+  cache-key:
+    description: 'Key under which the Roc cache is saved. Empty when caching is disabled. Use it with actions/cache/save to also save the cache when the job fails.'
+    value: ${{ steps.roc-cache-config.outputs.key }}
 
 runs:
   using: 'composite'
@@ -253,3 +272,44 @@ runs:
         fi
 
         echo "Roc setup completed successfully"
+
+    - name: Configure Roc cache
+      id: roc-cache-config
+      if: inputs.cache == 'true' && inputs.version == 'nightly-new-compiler'
+      shell: bash
+      env:
+        CACHE_KEY_SUFFIX: ${{ inputs.cache-key-suffix }}
+      run: |
+        set -euo pipefail
+
+        # Keep a ROC_CACHE_DIR the user already set. Otherwise pin a stable
+        # location: the cache only hits when restored to the path it was saved from.
+        if [[ -z "${ROC_CACHE_DIR:-}" ]]; then
+          ROC_CACHE_DIR="$RUNNER_TEMP/roc-cache"
+          echo "ROC_CACHE_DIR=$ROC_CACHE_DIR" >> "$GITHUB_ENV"
+        fi
+        echo "dir=$ROC_CACHE_DIR" >> "$GITHUB_OUTPUT"
+
+        # Roc keys its own entries by compiler content, so a nightly with the same
+        # compiler can reuse an older cache. Restore prefers the same version and
+        # falls back to any version. `+` never occurs in the sanitized fields.
+        ROC_VERSION=$(roc version)
+        ROC_VERSION=$(printf '%s' "${ROC_VERSION##* }" | tr -c 'A-Za-z0-9._-' '-')
+        SUFFIX=$(printf '%s' "$CACHE_KEY_SUFFIX" | tr -c 'A-Za-z0-9._-' '-')
+        ANY_VERSION="roc-cache-$RUNNER_OS-$RUNNER_ARCH-$GITHUB_JOB+$SUFFIX+"
+        SAME_VERSION="$ANY_VERSION$ROC_VERSION+"
+        echo "any-version-prefix=$ANY_VERSION" >> "$GITHUB_OUTPUT"
+        echo "same-version-prefix=$SAME_VERSION" >> "$GITHUB_OUTPUT"
+        echo "key=$SAME_VERSION$GITHUB_RUN_ID" >> "$GITHUB_OUTPUT"
+
+    # actions/cache saves in a post step when the job succeeds, so no extra step is needed.
+    - name: Cache Roc
+      id: roc-cache
+      if: steps.roc-cache-config.outcome == 'success'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ steps.roc-cache-config.outputs.dir }}
+        key: ${{ steps.roc-cache-config.outputs.key }}
+        restore-keys: |
+          ${{ steps.roc-cache-config.outputs.same-version-prefix }}
+          ${{ steps.roc-cache-config.outputs.any-version-prefix }}

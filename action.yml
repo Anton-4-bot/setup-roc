@@ -16,6 +16,19 @@ inputs:
     description: 'GitHub token used to authenticate API requests (avoids rate limiting). Defaults to the workflow token.'
     required: false
     default: ${{ github.token }}
+  cache:
+    description: 'Restore and save the Roc cache (including `roc test` results) with actions/cache. Only applies to "nightly-new-compiler". Set to "false" to disable.'
+    required: false
+    default: 'true'
+  cache-key-suffix:
+    description: 'Extra text for the cache key. Use it to keep cache entries apart when jobs share a name, e.g. matrix jobs.'
+    required: false
+    default: ''
+
+outputs:
+  cache-hit:
+    description: 'Whether the Roc cache was restored with an exact key match. Empty when caching is disabled.'
+    value: ${{ steps.roc-cache.outputs.cache-hit }}
 
 runs:
   using: 'composite'
@@ -253,3 +266,37 @@ runs:
         fi
 
         echo "Roc setup completed successfully"
+
+    - name: Configure Roc cache
+      id: roc-cache-config
+      if: inputs.cache == 'true' && inputs.version == 'nightly-new-compiler'
+      shell: bash
+      env:
+        CACHE_KEY_SUFFIX: ${{ inputs.cache-key-suffix }}
+      run: |
+        set -euo pipefail
+
+        # Keep a ROC_CACHE_DIR the user already set. Otherwise pin a stable
+        # location: the cache only hits when restored to the path it was saved from.
+        if [[ -z "${ROC_CACHE_DIR:-}" ]]; then
+          ROC_CACHE_DIR="$RUNNER_TEMP/roc-cache"
+          echo "ROC_CACHE_DIR=$ROC_CACHE_DIR" >> "$GITHUB_ENV"
+        fi
+        echo "dir=$ROC_CACHE_DIR" >> "$GITHUB_OUTPUT"
+
+        # A new nightly starts a fresh cache instead of piling up stale entries.
+        ROC_VERSION=$(roc version)
+        ROC_VERSION=$(printf '%s' "${ROC_VERSION##* }" | tr -c 'A-Za-z0-9._-' '-')
+        SUFFIX=$(printf '%s' "$CACHE_KEY_SUFFIX" | tr -c 'A-Za-z0-9._-' '-')
+        echo "key-prefix=roc-cache-$RUNNER_OS-$RUNNER_ARCH-$ROC_VERSION-$GITHUB_JOB-$SUFFIX" >> "$GITHUB_OUTPUT"
+
+    # actions/cache saves in a post step when the job succeeds, so no extra step is needed.
+    - name: Cache Roc
+      id: roc-cache
+      if: steps.roc-cache-config.outcome == 'success'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ steps.roc-cache-config.outputs.dir }}
+        key: ${{ steps.roc-cache-config.outputs.key-prefix }}-${{ github.run_id }}
+        restore-keys: |
+          ${{ steps.roc-cache-config.outputs.key-prefix }}-

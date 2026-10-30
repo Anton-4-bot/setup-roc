@@ -101,10 +101,12 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Setup Roc
+        id: setup-roc
         uses: ./
         with:
           version: ${{ matrix.version }}
           nightly-tag: ${{ matrix.nightly-tag }}
+          cache-key-suffix: ${{ matrix.runner }}-${{ matrix.nightly-tag }}
 
       - name: Check Roc version
         run: roc version
@@ -119,3 +121,34 @@ jobs:
 
       - name: Run HelloWorld example
         run: roc main.roc
+
+      # The Roc cache is saved when the job ends. Re-running the workflow
+      # restores it with an exact key match and `roc test` must then be cached.
+      - name: Run roc test (new compiler)
+        if: matrix.version == 'nightly-new-compiler' && !matrix.nightly-tag
+        shell: bash
+        run: |
+          printf 'CacheSmoke := [A].{\n\tvalue : I64\n\tvalue = 5\n}\n\nexpect CacheSmoke.value == 5\n' > CacheSmoke.roc
+          roc test CacheSmoke.roc | tee test-output.txt
+
+      - name: Check Roc cache (new compiler)
+        if: matrix.version == 'nightly-new-compiler' && !matrix.nightly-tag
+        shell: bash
+        env:
+          CACHE_HIT: ${{ steps.setup-roc.outputs.cache-hit }}
+        run: |
+          echo "ROC_CACHE_DIR=$ROC_CACHE_DIR"
+          if [[ -z "$(ls -A "$ROC_CACHE_DIR")" ]]; then
+            echo "Error: roc test did not write to ROC_CACHE_DIR"
+            exit 1
+          fi
+          if [[ "${{ github.run_attempt }}" != "1" ]]; then
+            if [[ "$CACHE_HIT" != "true" ]]; then
+              echo "Error: expected an exact cache hit on a workflow re-run (cache-hit='$CACHE_HIT')"
+              exit 1
+            fi
+            if ! grep -q "(cached)" test-output.txt; then
+              echo "Error: roc test did not use the restored cache"
+              exit 1
+            fi
+          fi

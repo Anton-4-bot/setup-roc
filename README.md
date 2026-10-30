@@ -60,6 +60,7 @@ Windows arm64 can be made available again with the next zig release (after 0.16.
 3. Verifies the SHA256 checksum to ensure file integrity (skipped for nightly releases)
 4. Extracts the compiler
 5. Adds the Roc executable to the PATH
+6. Restores and saves the Roc cache (`nightly-new-compiler` only)
 
 For new-compiler nightlies that include glue support, this action also exports:
 
@@ -83,6 +84,23 @@ Example:
 
 Pin to a `setup-roc` commit that includes glue support; older pinned commits do
 not export these variables.
+
+## Caching
+
+For `nightly-new-compiler`, the action restores the Roc cache at the start of the job and saves it when the job succeeds (using [actions/cache](https://github.com/actions/cache)). Cached `roc test` results are part of that cache, so unchanged tests are not run again; the output shows `(cached)`.
+
+- The cache lives in `$RUNNER_TEMP/roc-cache`, the action sets `ROC_CACHE_DIR` to this path. A `ROC_CACHE_DIR` you set yourself is respected.
+- Each Roc nightly, OS, architecture and job name gets its own cache. Add `cache-key-suffix` when jobs share a name, for example matrix jobs:
+
+```yaml
+- uses: roc-lang/setup-roc@<commit-sha-with-cache-support>
+  with:
+    version: nightly-new-compiler
+    cache-key-suffix: ${{ matrix.os }}
+```
+
+- The `cache-hit` output is `true` when the cache was restored with an exact key match.
+- Set `cache: false` to disable caching.
 
 ## Security
 

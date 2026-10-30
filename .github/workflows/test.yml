@@ -101,7 +101,6 @@ jobs:
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Setup Roc
-        id: setup-roc
         uses: ./
         with:
           version: ${{ matrix.version }}
@@ -111,9 +110,10 @@ jobs:
       - name: Check Roc version
         run: roc version
 
+      # Pinned to the last version before the examples moved to new-compiler syntax.
       - name: Download HelloWorld example (old compiler)
         if: matrix.version != 'nightly-new-compiler'
-        run: curl -fsSL -o main.roc https://raw.githubusercontent.com/roc-lang/examples/main/examples/HelloWorld/main.roc
+        run: curl -fsSL -o main.roc https://raw.githubusercontent.com/roc-lang/examples/75ccb5718653b903330ede4063710cfba80e5c40/examples/HelloWorld/main.roc
 
       - name: Download HelloWorld example (new compiler)
         if: matrix.version == 'nightly-new-compiler'
@@ -122,36 +122,54 @@ jobs:
       - name: Run HelloWorld example
         run: roc main.roc
 
-      # The Roc cache is saved when the job ends. Re-running the workflow
-      # restores it with an exact key match and `roc test` must then be cached.
-      - name: Run roc test (new compiler)
-        if: matrix.version == 'nightly-new-compiler' && !matrix.nightly-tag
+  # Jobs run one after another: `save` fills the cache, `restore` must then
+  # restore it with an exact key match and `roc test` must report `(cached)`.
+  cache:
+    name: Cache ${{ matrix.step }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      max-parallel: 1
+      matrix:
+        include:
+          - { os: Linux, runner: ubuntu-latest, step: save }
+          - { os: Linux, runner: ubuntu-latest, step: restore }
+          - { os: macOS, runner: macos-latest, step: save }
+          - { os: macOS, runner: macos-latest, step: restore }
+          - { os: Windows, runner: windows-2025, step: save }
+          - { os: Windows, runner: windows-2025, step: restore }
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Setup Roc
+        id: setup-roc
+        uses: ./
+        with:
+          version: nightly-new-compiler
+          cache-key-suffix: ${{ matrix.runner }}
+
+      - name: Run roc test
         shell: bash
         run: |
           printf 'CacheSmoke := [A].{\n\tvalue : I64\n\tvalue = 5\n}\n\nexpect CacheSmoke.value == 5\n' > CacheSmoke.roc
           roc test CacheSmoke.roc | tee test-output.txt
 
-      - name: Check Roc cache (new compiler)
-        if: matrix.version == 'nightly-new-compiler' && !matrix.nightly-tag
+      - name: Check that roc wrote to the cache
+        if: matrix.step == 'save'
+        shell: bash
+        run: |
+          echo "ROC_CACHE_DIR=$ROC_CACHE_DIR"
+          [[ -n "$(ls -A "$ROC_CACHE_DIR")" ]] || { echo "Error: roc test did not write to ROC_CACHE_DIR"; exit 1; }
+
+      - name: Check that the cache was restored and used
+        if: matrix.step == 'restore'
         shell: bash
         env:
           CACHE_HIT: ${{ steps.setup-roc.outputs.cache-hit }}
         run: |
-          echo "ROC_CACHE_DIR=$ROC_CACHE_DIR"
-          if [[ -z "$(ls -A "$ROC_CACHE_DIR")" ]]; then
-            echo "Error: roc test did not write to ROC_CACHE_DIR"
-            exit 1
-          fi
-          if [[ "${{ github.run_attempt }}" != "1" ]]; then
-            if [[ "$CACHE_HIT" != "true" ]]; then
-              echo "Error: expected an exact cache hit on a workflow re-run (cache-hit='$CACHE_HIT')"
-              exit 1
-            fi
-            if ! grep -q "(cached)" test-output.txt; then
-              echo "Error: roc test did not use the restored cache"
-              exit 1
-            fi
-          fi
+          [[ "$CACHE_HIT" == "true" ]] || { echo "Error: expected an exact cache hit (cache-hit='$CACHE_HIT')"; exit 1; }
+          grep -q "(cached)" test-output.txt || { echo "Error: roc test did not use the restored cache"; exit 1; }
 
       # Save even when an earlier step failed; the automatic save only runs on success.
       - name: Save Roc cache

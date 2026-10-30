@@ -65,15 +65,15 @@ jobs:
             version: nightly-new-compiler
           - os: macOS
             arch: arm64
-            runner: macos-latest
+            runner: macos-15
             version: alpha3-rolling
           - os: macOS
             arch: arm64
-            runner: macos-latest
+            runner: macos-15
             version: alpha4-rolling
           - os: macOS
             arch: arm64
-            runner: macos-latest
+            runner: macos-15
             version: nightly
           - os: macOS
             arch: arm64

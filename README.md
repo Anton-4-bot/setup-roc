@@ -90,7 +90,7 @@ not export these variables.
 For `nightly-new-compiler`, the action restores the Roc cache at the start of the job and saves it when the job succeeds (using [actions/cache](https://github.com/actions/cache)). Cached `roc test` results are part of that cache, so unchanged tests are not run again; the output shows `(cached)`.
 
 - The cache lives in `$RUNNER_TEMP/roc-cache`, the action sets `ROC_CACHE_DIR` to this path. A `ROC_CACHE_DIR` you set yourself is respected.
-- Each Roc nightly, OS, architecture and job name gets its own cache. Add `cache-key-suffix` when jobs share a name, for example matrix jobs:
+- Each OS, architecture and job name gets its own cache. A run restores the newest cache from the same Roc nightly, or else from any other nightly: Roc keys its entries by the compiler's content, so entries from a different compiler are ignored, while a nightly with an unchanged compiler reuses them. Add `cache-key-suffix` when jobs share a name, for example matrix jobs:
 
 ```yaml
 - uses: roc-lang/setup-roc@<commit-sha-with-cache-support>
@@ -123,7 +123,7 @@ When the job succeeds, the automatic save finds this key already reserved and do
 
 ### Warm the cache on your default branch
 
-GitHub only lets a run restore caches from its own branch, its base branch and the default branch, and a fork PR cannot write to the default branch's caches. A PR's first run is therefore cold unless a run on the default branch has saved a cache. Run your Roc workflow on the default branch too, and on a schedule, because a new Roc nightly starts a new cache:
+GitHub only lets a run restore caches from its own branch, its base branch and the default branch, and a fork PR cannot write to the default branch's caches. A PR's first run is therefore cold unless a run on the default branch has saved a cache. Run your Roc workflow on the default branch too, and on a schedule, so the cache on the default branch follows the latest nightly:
 
 ```yaml
 on:

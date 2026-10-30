@@ -102,6 +102,25 @@ For `nightly-new-compiler`, the action restores the Roc cache at the start of th
 - The `cache-hit` output is `true` when the cache was restored with an exact key match.
 - Set `cache: false` to disable caching.
 
+The cache is saved automatically when the job succeeds. To also save it when the job fails (so tests that passed stay cached for the next run), add this as the last step of the job:
+
+```yaml
+- id: roc
+  uses: roc-lang/setup-roc@<commit-sha-with-cache-support>
+  with:
+    version: nightly-new-compiler
+
+# ... your steps, including `roc test` ...
+
+- uses: actions/cache/save@<commit-sha>
+  if: always() && steps.roc.outputs.cache-key != ''
+  with:
+    path: ${{ steps.roc.outputs.cache-path }}
+    key: ${{ steps.roc.outputs.cache-key }}
+```
+
+When the job succeeds, the automatic save finds this key already reserved and does nothing.
+
 ## Security
 
 For major releases, the action verifies the SHA256 checksum of the downloaded file to ensure it hasn't been tampered with. If the checksum doesn't match, the action will fail.

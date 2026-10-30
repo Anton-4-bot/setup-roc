@@ -152,3 +152,11 @@ jobs:
               exit 1
             fi
           fi
+
+      # Save even when an earlier step failed; the automatic save only runs on success.
+      - name: Save Roc cache
+        if: always() && steps.setup-roc.outputs.cache-key != ''
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.setup-roc.outputs.cache-path }}
+          key: ${{ steps.setup-roc.outputs.cache-key }}

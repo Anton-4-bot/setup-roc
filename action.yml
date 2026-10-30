@@ -29,6 +29,12 @@ outputs:
   cache-hit:
     description: 'Whether the Roc cache was restored with an exact key match. Empty when caching is disabled.'
     value: ${{ steps.roc-cache.outputs.cache-hit }}
+  cache-path:
+    description: 'Directory of the Roc cache (ROC_CACHE_DIR). Empty when caching is disabled. Use it with actions/cache/save to also save the cache when the job fails.'
+    value: ${{ steps.roc-cache-config.outputs.dir }}
+  cache-key:
+    description: 'Key under which the Roc cache is saved. Empty when caching is disabled. Use it with actions/cache/save to also save the cache when the job fails.'
+    value: ${{ steps.roc-cache-config.outputs.key }}
 
 runs:
   using: 'composite'
@@ -288,7 +294,9 @@ runs:
         ROC_VERSION=$(roc version)
         ROC_VERSION=$(printf '%s' "${ROC_VERSION##* }" | tr -c 'A-Za-z0-9._-' '-')
         SUFFIX=$(printf '%s' "$CACHE_KEY_SUFFIX" | tr -c 'A-Za-z0-9._-' '-')
-        echo "key-prefix=roc-cache-$RUNNER_OS-$RUNNER_ARCH-$ROC_VERSION-$GITHUB_JOB-$SUFFIX" >> "$GITHUB_OUTPUT"
+        KEY_PREFIX="roc-cache-$RUNNER_OS-$RUNNER_ARCH-$ROC_VERSION-$GITHUB_JOB-$SUFFIX"
+        echo "key-prefix=$KEY_PREFIX" >> "$GITHUB_OUTPUT"
+        echo "key=$KEY_PREFIX-$GITHUB_RUN_ID" >> "$GITHUB_OUTPUT"
 
     # actions/cache saves in a post step when the job succeeds, so no extra step is needed.
     - name: Cache Roc
@@ -297,6 +305,6 @@ runs:
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ steps.roc-cache-config.outputs.dir }}
-        key: ${{ steps.roc-cache-config.outputs.key-prefix }}-${{ github.run_id }}
+        key: ${{ steps.roc-cache-config.outputs.key }}
         restore-keys: |
           ${{ steps.roc-cache-config.outputs.key-prefix }}-

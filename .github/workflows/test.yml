@@ -13,36 +13,7 @@ jobs:
           - os: Linux
             arch: x86_64
             runner: ubuntu-latest
-            version: alpha3-rolling
-          - os: Linux
-            arch: x86_64
-            runner: ubuntu-latest
-            version: alpha4-rolling
-          - os: Linux
-            arch: x86_64
-            runner: ubuntu-latest
-            version: nightly
-          - os: Linux
-            arch: x86_64
-            runner: ubuntu-latest
             version: nightly-new-compiler
-          - os: Linux
-            arch: x86_64
-            runner: ubuntu-latest
-            version: nightly-new-compiler
-            nightly-tag: nightly-2026-June-27-127861d
-          - os: Linux
-            arch: arm64
-            runner: ubuntu-24.04-arm
-            version: alpha3-rolling
-          - os: Linux
-            arch: arm64
-            runner: ubuntu-24.04-arm
-            version: alpha4-rolling
-          - os: Linux
-            arch: arm64
-            runner: ubuntu-24.04-arm
-            version: nightly
           - os: Linux
             arch: arm64
             runner: ubuntu-24.04-arm
@@ -50,31 +21,7 @@ jobs:
           - os: macOS
             arch: x86_64
             runner: macos-15-intel
-            version: alpha3-rolling
-          - os: macOS
-            arch: x86_64
-            runner: macos-15-intel
-            version: alpha4-rolling
-          - os: macOS
-            arch: x86_64
-            runner: macos-15-intel
-            version: nightly
-          - os: macOS
-            arch: x86_64
-            runner: macos-15-intel
             version: nightly-new-compiler
-          - os: macOS
-            arch: arm64
-            runner: macos-latest
-            version: alpha3-rolling
-          - os: macOS
-            arch: arm64
-            runner: macos-latest
-            version: alpha4-rolling
-          - os: macOS
-            arch: arm64
-            runner: macos-latest
-            version: nightly
           - os: macOS
             arch: arm64
             runner: macos-latest

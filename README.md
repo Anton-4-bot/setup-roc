@@ -13,11 +13,45 @@ Add this step to your CI workflow:
 
 ### For New Compiler Nightly Releases
 
+Recommended setup, which also caches Roc's build and `roc test` results between runs (see [Caching](#caching)):
+
 ```yaml
-- uses: roc-lang/setup-roc@cbe782d6f165b89c87d99f50a59ac4f5f73b4427
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 18 * * *' # nightlies are published around 16:00-17:00 UTC, this keeps the cache on main warm
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - id: roc
+        uses: roc-lang/setup-roc@<commit-sha-with-cache-support>
+        with:
+          version: nightly-new-compiler
+          nightly-tag: nightly-2026-June-27-127861d # remove nightly-tag to just get the latest one
+          # cache-key-suffix: ${{ matrix.os }} # needed when matrix jobs share a name
+
+      - run: roc test main.roc
+
+      # Also save the cache when the job fails, so tests that passed stay cached.
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: always() && steps.roc.outputs.cache-key != ''
+        with:
+          path: ${{ steps.roc.outputs.cache-path }}
+          key: ${{ steps.roc.outputs.cache-key }}
+```
+
+If you only need the compiler, a single step is enough. Caching is on by default, set `cache: false` to disable it:
+
+```yaml
+- uses: roc-lang/setup-roc@<commit-sha-with-cache-support>
   with:
     version: nightly-new-compiler
-    nightly-tag: nightly-2026-June-27-127861d # remove nightly-tag to just get the latest one
 ```
 
 ### For Old Major Releases
@@ -60,6 +94,7 @@ Windows arm64 can be made available again with the next zig release (after 0.16.
 3. Verifies the SHA256 checksum to ensure file integrity (skipped for nightly releases)
 4. Extracts the compiler
 5. Adds the Roc executable to the PATH
+6. Restores and saves the Roc cache (`nightly-new-compiler` only)
 
 For new-compiler nightlies that include glue support, this action also exports:
 
@@ -83,6 +118,33 @@ Example:
 
 Pin to a `setup-roc` commit that includes glue support; older pinned commits do
 not export these variables.
+
+## Caching
+
+For `nightly-new-compiler`, the action restores the Roc cache at the start of the job and saves it when the job succeeds (using [actions/cache](https://github.com/actions/cache)). Cached `roc test` results are part of that cache, so unchanged tests are not run again; the output shows `(cached)`.
+
+- The cache lives in `$RUNNER_TEMP/roc-cache`, the action sets `ROC_CACHE_DIR` to this path. A `ROC_CACHE_DIR` you set yourself is respected.
+- Each OS, architecture and job name gets its own cache. A run restores the newest cache from the same Roc nightly, or else from any other nightly: Roc keys its entries by the compiler's content, so entries from a different compiler are ignored, while a nightly with an unchanged compiler reuses them. Add `cache-key-suffix` when jobs share a name, for example matrix jobs:
+
+```yaml
+- uses: roc-lang/setup-roc@<commit-sha-with-cache-support>
+  with:
+    version: nightly-new-compiler
+    cache-key-suffix: ${{ matrix.os }}
+```
+
+- The `cache-hit` output is `true` when the cache was restored with an exact key match.
+- Set `cache: false` to disable caching.
+
+The cache is saved automatically when the job succeeds. The recommended setup at the top adds an `actions/cache/save` step with `if: always()` to also save it when the job fails, so tests that passed stay cached for the next run. It uses the `cache-path` and `cache-key` outputs.
+
+When the job succeeds, the automatic save finds this key already reserved and does nothing.
+
+### Warm the cache on your default branch
+
+GitHub only lets a run restore caches from its own branch, its base branch and the default branch, and a fork PR cannot write to the default branch's caches. A PR's first run is therefore cold unless a run on the default branch has saved a cache. Run your Roc workflow on the default branch too, and on a schedule, as in the recommended setup at the top, so the cache on the default branch follows the latest nightly.
+
+Matrix jobs need a distinct `cache-key-suffix` so that the entries saved on the default branch match the same jobs on PR branches. GitHub deletes caches unused for 7 days and evicts the least recently used ones when a repository exceeds 10 GB.
 
 ## Security
 

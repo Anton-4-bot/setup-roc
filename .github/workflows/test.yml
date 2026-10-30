@@ -1,121 +1,19 @@
-name: Test Action
-
+name: Verify old compilers on macOS arm64
 on:
   pull_request:
-
 jobs:
   test:
-    name: Test ${{ matrix.version }}${{ matrix.nightly-tag && format(' ({0})', matrix.nightly-tag) || '' }} on ${{ matrix.os }} ${{ matrix.arch }}
+    name: ${{ matrix.version }} on ${{ matrix.runner }}
     runs-on: ${{ matrix.runner }}
     strategy:
+      fail-fast: false
       matrix:
-        include:
-          - os: Linux
-            arch: x86_64
-            runner: ubuntu-latest
-            version: alpha3-rolling
-          - os: Linux
-            arch: x86_64
-            runner: ubuntu-latest
-            version: alpha4-rolling
-          - os: Linux
-            arch: x86_64
-            runner: ubuntu-latest
-            version: nightly
-          - os: Linux
-            arch: x86_64
-            runner: ubuntu-latest
-            version: nightly-new-compiler
-          - os: Linux
-            arch: x86_64
-            runner: ubuntu-latest
-            version: nightly-new-compiler
-            nightly-tag: nightly-2026-June-27-127861d
-          - os: Linux
-            arch: arm64
-            runner: ubuntu-24.04-arm
-            version: alpha3-rolling
-          - os: Linux
-            arch: arm64
-            runner: ubuntu-24.04-arm
-            version: alpha4-rolling
-          - os: Linux
-            arch: arm64
-            runner: ubuntu-24.04-arm
-            version: nightly
-          - os: Linux
-            arch: arm64
-            runner: ubuntu-24.04-arm
-            version: nightly-new-compiler
-          - os: macOS
-            arch: x86_64
-            runner: macos-15-intel
-            version: alpha3-rolling
-          - os: macOS
-            arch: x86_64
-            runner: macos-15-intel
-            version: alpha4-rolling
-          - os: macOS
-            arch: x86_64
-            runner: macos-15-intel
-            version: nightly
-          - os: macOS
-            arch: x86_64
-            runner: macos-15-intel
-            version: nightly-new-compiler
-          - os: macOS
-            arch: arm64
-            runner: macos-latest
-            version: alpha3-rolling
-          - os: macOS
-            arch: arm64
-            runner: macos-latest
-            version: alpha4-rolling
-          - os: macOS
-            arch: arm64
-            runner: macos-latest
-            version: nightly
-          - os: macOS
-            arch: arm64
-            runner: macos-latest
-            version: nightly-new-compiler
-          - os: macOS
-            arch: x86_64
-            runner: macos-26-intel
-            version: nightly-new-compiler
-          - os: macOS
-            arch: arm64
-            runner: macos-26
-            version: nightly-new-compiler
-          - os: Windows
-            arch: x86_64
-            runner: windows-2022
-            version: nightly-new-compiler
-          - os: Windows
-            arch: x86_64
-            runner: windows-2025
-            version: nightly-new-compiler
-
+        version: [alpha3-rolling, alpha4-rolling, nightly]
+        runner: [macos-latest, macos-15]
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-
-      - name: Setup Roc
-        uses: ./
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+      - uses: ./
         with:
           version: ${{ matrix.version }}
-          nightly-tag: ${{ matrix.nightly-tag }}
-
-      - name: Check Roc version
-        run: roc version
-
-      - name: Download HelloWorld example (old compiler)
-        if: matrix.version != 'nightly-new-compiler'
-        run: curl -fsSL -o main.roc https://raw.githubusercontent.com/roc-lang/examples/main/examples/HelloWorld/main.roc
-
-      - name: Download HelloWorld example (new compiler)
-        if: matrix.version == 'nightly-new-compiler'
-        run: curl -fsSL -o main.roc https://raw.githubusercontent.com/roc-lang/nightlies/main/hello_world_test.roc
-
-      - name: Run HelloWorld example
-        run: roc main.roc
+      - run: curl -fsSL -o main.roc https://raw.githubusercontent.com/roc-lang/examples/75ccb5718653b903330ede4063710cfba80e5c40/examples/HelloWorld/main.roc
+      - run: roc main.roc

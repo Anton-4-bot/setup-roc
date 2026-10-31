@@ -21,7 +21,7 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: '0 18 * * *' # nightlies are published around 16:00-17:00 UTC, this keeps the cache on main warm
+    - cron: '0 18 * * *' # Optional: run once a day to keep the main branch cache warm. Adjust this based on how active your project is.
 
 jobs:
   test:
@@ -44,14 +44,6 @@ jobs:
         with:
           path: ${{ steps.roc.outputs.cache-path }}
           key: ${{ steps.roc.outputs.cache-key }}
-```
-
-If you only need the compiler, a single step is enough. Caching is on by default, set `cache: false` to disable it:
-
-```yaml
-- uses: roc-lang/setup-roc@<commit-sha-with-cache-support>
-  with:
-    version: nightly-new-compiler
 ```
 
 ### For Old Major Releases

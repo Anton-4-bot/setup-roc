@@ -12,20 +12,16 @@ jobs:
         include:
           - os: Linux
             arch: x86_64
-            runner: ubuntu-latest
+            runner: ubuntu-26.04
             version: nightly
           - os: Linux
             arch: x86_64
-            runner: ubuntu-latest
+            runner: ubuntu-26.04
             version: nightly
             nightly-tag: nightly-2026-June-27-127861d
           - os: Linux
             arch: arm64
-            runner: ubuntu-24.04-arm
-            version: nightly
-          - os: macOS
-            arch: x86_64
-            runner: macos-15-intel
+            runner: ubuntu-26.04-arm
             version: nightly
           - os: macOS
             arch: arm64
@@ -49,11 +45,11 @@ jobs:
             version: nightly
           - os: Linux
             arch: x86_64
-            runner: ubuntu-latest
+            runner: ubuntu-26.04
             version: 0.1.0_RC1
           - os: Linux
             arch: arm64
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-26.04-arm
             version: 0.1.0_RC1
           - os: macOS
             arch: arm64
@@ -61,7 +57,7 @@ jobs:
             version: 0.1.0_RC1
           - os: macOS
             arch: x86_64
-            runner: macos-15-intel
+            runner: macos-26-intel
             version: 0.1.0_RC1
           - os: Windows
             arch: x86_64
@@ -98,8 +94,8 @@ jobs:
       max-parallel: 1
       matrix:
         include:
-          - { os: Linux, runner: ubuntu-latest, step: save }
-          - { os: Linux, runner: ubuntu-latest, step: restore }
+          - { os: Linux, runner: ubuntu-26.04, step: save }
+          - { os: Linux, runner: ubuntu-26.04, step: restore }
           - { os: macOS, runner: macos-latest, step: save }
           - { os: macOS, runner: macos-latest, step: restore }
           - { os: Windows, runner: windows-2025, step: save }

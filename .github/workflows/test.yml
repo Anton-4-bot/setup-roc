@@ -89,11 +89,12 @@ jobs:
         run: roc main.roc
 
   # Jobs run one after another: `save` fills the cache, `restore` must then
-  # restore it with an exact key match and `roc test` must report `(cached)`.
+  # restore it with an exact key match and `roc check` must report the module as cached.
   cache:
     name: Cache ${{ matrix.step }} on ${{ matrix.os }}
     runs-on: ${{ matrix.runner }}
     strategy:
+      fail-fast: false
       max-parallel: 1
       matrix:
         include:
@@ -135,7 +136,8 @@ jobs:
           CACHE_HIT: ${{ steps.setup-roc.outputs.cache-hit }}
         run: |
           [[ "$CACHE_HIT" == "true" ]] || { echo "Error: expected an exact cache hit (cache-hit='$CACHE_HIT')"; exit 1; }
-          grep -q "(cached)" test-output.txt || { echo "Error: roc test did not use the restored cache"; exit 1; }
+          roc check CacheSmoke.roc --verbose | tee check-output.txt
+          grep -q "1 cached, 0 built" check-output.txt || { echo "Error: roc did not use the restored cache"; exit 1; }
 
       # Save even when an earlier step failed; the automatic save only runs on success.
       - name: Save Roc cache

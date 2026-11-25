@@ -120,6 +120,7 @@ jobs:
         shell: bash
         run: |
           printf 'CacheSmoke := [A].{\n\tvalue : I64\n\tvalue = 5\n}\n\nexpect CacheSmoke.value == 5\n' > CacheSmoke.roc
+          roc check CacheSmoke.roc --verbose | tee check-output.txt
           roc test CacheSmoke.roc | tee test-output.txt
 
       - name: Check that roc wrote to the cache
@@ -136,7 +137,6 @@ jobs:
           CACHE_HIT: ${{ steps.setup-roc.outputs.cache-hit }}
         run: |
           [[ "$CACHE_HIT" == "true" ]] || { echo "Error: expected an exact cache hit (cache-hit='$CACHE_HIT')"; exit 1; }
-          roc check CacheSmoke.roc --verbose | tee check-output.txt
           grep -q "1 cached, 0 built" check-output.txt || { echo "Error: roc did not use the restored cache"; exit 1; }
 
       # Save even when an earlier step failed; the automatic save only runs on success.

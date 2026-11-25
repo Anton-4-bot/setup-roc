@@ -47,6 +47,26 @@ jobs:
             arch: x86_64
             runner: windows-2025
             version: nightly
+          - os: Linux
+            arch: x86_64
+            runner: ubuntu-latest
+            version: 0.1.0_RC1
+          - os: Linux
+            arch: arm64
+            runner: ubuntu-24.04-arm
+            version: 0.1.0_RC1
+          - os: macOS
+            arch: arm64
+            runner: macos-latest
+            version: 0.1.0_RC1
+          - os: macOS
+            arch: x86_64
+            runner: macos-15-intel
+            version: 0.1.0_RC1
+          - os: Windows
+            arch: x86_64
+            runner: windows-2025
+            version: 0.1.0_RC1
 
     steps:
       - name: Checkout repository

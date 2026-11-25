@@ -41,14 +41,22 @@ runs:
   steps:
     - name: Download Roc
       shell: bash
+      env:
+        ROC_SETUP_VERSION: ${{ inputs.version }}
+        ROC_SETUP_NIGHTLY_TAG: ${{ inputs.nightly-tag }}
+        ROC_SETUP_TOKEN: ${{ inputs.token }}
       run: |
         set -euo pipefail
 
-        VERSION="${{ inputs.version }}"
-        NIGHTLY_TAG="${{ inputs.nightly-tag }}"
-        TOKEN="${{ inputs.token }}"
+        VERSION="$ROC_SETUP_VERSION"
+        NIGHTLY_TAG="$ROC_SETUP_NIGHTLY_TAG"
+        TOKEN="$ROC_SETUP_TOKEN"
         echo "Installing Roc version: $VERSION"
 
+        if [[ ! "$VERSION" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ || ${#VERSION} -gt 64 ]]; then
+          echo "Error: invalid version: $VERSION"
+          exit 1
+        fi
         if [[ "$VERSION" != "nightly" && -n "$NIGHTLY_TAG" ]]; then
           echo "Error: nightly-tag can only be used with version: nightly"
           exit 1
